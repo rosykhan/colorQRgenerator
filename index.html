@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>QR</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <script>
+        if (typeof module === 'object') {
+            window.module = module;
+            module = undefined;
+        }
+    </script>
+    <script type="text/javascript" src="inc/jquery-3.2.1.min.js"></script>
+    <script type="text/javascript" src="inc/html2canvas.js"></script>
+    <script type="text/javascript" src="inc/easy.qrcode.js" charset="utf-8"></script>
+    <script>
+        if (window.module) module = window.module;
+    </script>
+
+    <style type="text/css">
+        * {
+            /* text-align: center; */
+            font-family: helvetica;
+        }
+        
+        .container {
+            width: 750px;
+            margin: 10px auto;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            opacity: 0.9;
+            z-index: 100;
+            display: inline-flex;
+        }
+        
+        .table {
+            width: 400px;
+            height: 550px;
+            margin: auto;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        body {
+            /* background-color: #111; */
+            color: #555;
+            font-size: 1.1em;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+        
+        .canvaswrapper {
+            height: 750px;
+            width: 750px;
+            background: url('grfx/gradient.jpg');
+            background-size: 750px 750px;
+        }
+        /*         
+        #canvas {
+            height: 750px;
+            width: 750px;
+        } */
+        
+        #upload {
+            height: 20px;
+            width: 200px;
+            margin-left: 10px;
+            margin-top: 35px;
+        }
+        
+        #foldername {
+            height: 20px;
+            width: 200px;
+            margin-left: 10px;
+            margin-top: 35px;
+        }
+        
+        #btn {
+            height: 30px;
+            width: 120px;
+            margin-left: 10px;
+            margin-top: 25px;
+            float: left;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- <input type="text" name="qrTxt" id="qrTxt">
+    <button onclick="showQr()">Generate QR</button> -->
+    <form enctype="multipart/form-data">
+        <label style="margin-left:10px;">Choose excel file: </label>
+        <input id="upload" type="file" name="files[]"><br>
+        <label style="margin-left:10px;">Enter folder name: </label>
+        <input type="text" name="foldername" id="foldername">
+    </form>
+
+    <button id="btn" onclick="readExcelFile()">GENERATE QR</button>
+
+    <div class="overlay" style="display: none;">
+        <table class="table" style=" height:200px;">
+            <tr>
+                <td align="center">
+                    <img src="grfx/loader.gif" width="110" height="110">
+                </td>
+            </tr>
+            <tr>
+                <td align="center">
+                    <h1>Generating QR Codes...</h1>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="container doneMsg" style="display: none;">
+        <table class="table">
+            <tr>
+                <td align="center">
+                    <h1>QR Codes Saved!</h1>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="container" style="opacity: 0;">
+        <img id="img2" src="" style="display:none;">
+        <br><br> <br><br>
+        <div id="qrcode" style="display:none;"></div>
+
+        <div class="canvaswrapper" style="display:none;">
+            <canvas id="canvas"></canvas>
+        </div>
+        <br><br><br><br><br><br>
+    </div>
+</body>
+<script>
+    if (typeof module === 'object') {
+        window.module = module;
+        module = undefined;
+    }
+</script>
+<script type="text/javascript" src="inc/FileSaver.js"></script>
+<script type="text/javascript" src="inc/common.js"></script>
+<script>
+    if (window.module) module = window.module;
+</script>
+
+<script>
+    const {
+        desktopCapturer,
+        screen,
+        shell
+    } = require('electron')
+    const fs = require('fs')
+    const os = require('os')
+    const path = require('path')
+    const ipc = require('electron').ipcRenderer
+
+    // ipc.send("shot", function(event, arg) {
+    //     // console.log("from reply", arg)
+    //     screenShotData = "data:image/jpeg;base64," + arg;
+    //     console.log("screenSHotData", screenShotData)
+    // })
+    function generateQr(qrtext) {
+        return new Promise((resolve, reject) => {
+            console.log('Second');
+            setTimeout(function() {
+                var img1 = document.getElementById('qrcode').getElementsByTagName('img')[0];
+                var img2 = document.getElementById('img2');
+                var canvas = document.getElementById('canvas');
+                var context = canvas.getContext('2d');
+                canvas.width = img1.width;
+                canvas.height = img1.height;
+                context.globalAlpha = 1.0;
+                context.drawImage(img1, 0, 0);
+                // context.globalAlpha = 0.3; //Remove if pngs have alpha
+                context.drawImage(img2, 0, 0);
+                var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                var data = imageData.data;
+                var removeBlack = function() {
+                    for (var i = 0; i < data.length; i += 4) {
+                        if (data[i] + data[i + 1] + data[i + 2] == 0) {
+                            data[i + 3] = 0; // alpha
+                        }
+                    }
+                    context.putImageData(imageData, 0, 0);
+                };
+                removeBlack();
+                $(".canvaswrapper").show()
+                html2canvas($(".canvaswrapper"), {
+                    onrendered: function(canvas) {
+                        theCanvas = canvas;
+                        document.body.appendChild(canvas);
+                        canvas.toBlob(function(blob) {
+                            //saveAs(blob, "Dashboard.png");
+                            var reader = new FileReader();
+                            reader.readAsDataURL(blob);
+                            reader.onloadend = function() {
+                                base64data = reader.result;
+                                // console.log(base64data);
+                                var sendData = {}
+                                sendData.skuId = qrtext
+                                sendData.imgData = base64data
+                                sendData.folderName = foldername
+                                ipc.send("sendData", sendData)
+                                ipc.on("sendDataSuccess", function(event, success) {
+                                    console.log("on sendDataSuccess: ", success)
+                                        // qrtext = ""
+                                    console.log("qrtext = ", qrtext)
+                                    $("body").children('canvas').remove()
+                                    resolve()
+                                });
+                            }
+                        });
+                    }
+                });
+            }, 200)
+        })
+    }
+</script>
+
+</html>
